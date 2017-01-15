@@ -25,19 +25,24 @@ def usage():
 
  $EXENAME
 
- Function: Whatever
+ Function: Snap a photo or short video and email it.  Optionally turn on a
+           light for the photo/video.
 
- Syntax  : $EXENAME {--debug #}
+ Syntax  : $EXENAME {--debug #} {--light} captureType emailTo
 
- Note    : Parm       Description
-           ---------- --------------------------------------------------------
-           --debug    optionally specifies debug option
-                      0=off 1=STDERR 2=FILE
+ Note    : Parm         Description
+           ----------   --------------------------------------------------------
+           captureType  photo or video
+           emailTo      email address to receive the photo/video
+           --light      optionally turn light on during photo/video capture
+           --debug      optionally specifies debug option
+                        0=off 1=STDERR 2=FILE
 
- Examples: $EXENAME
+ Examples: $EXENAME photo jdoe@geemail.com --light
 
  Change History:
-  em  XX/XX/2016  first written
+  em  12/12/2016  first written
+  em  01/14/2017  add --light option
 .
 """
    template = Template(usagetext)
@@ -61,6 +66,12 @@ def main():
 
    initialize()
 
+   if genutil.G_options.light:
+      logger.info("setting up GPIO for light")
+      GPIO.setwarnings(False)
+      GPIO.setmode(GPIO.BOARD)
+      GPIO.setup(12, GPIO.OUT)
+
    ##############################################################################
    #
    # Logic
@@ -71,6 +82,8 @@ def main():
 
       # We only want 1 instance of this running.  So attempt to get the "lock".
       genutil.getLock(EXENAME)
+
+      if genutil.G_options.light: GPIO.output(12,0)  # switch light on
 
       recordingFileName_h264 = "/tmp/%s.h264" % EXENAME
       recordingFileName_mp4  = "/tmp/%s.mp4" % EXENAME
@@ -92,6 +105,8 @@ def main():
          # Convert the H264 video file to MP4
          print("Converting video to mp4...")
          os.system("/usr/bin/MP4Box -fps 30 -add %s %s >/tmp/MP4Box.out 2>&1" % (recordingFileName_h264, recordingFileName_mp4))
+
+      if genutil.G_options.light: GPIO.output(12,1)  # switch light off
 
       print("Sending the %s to %s..." % (genutil.G_options.captureType, genutil.G_options.emailTo))
       subject = 'Just Snapped a %s at %s!' % (genutil.G_options.captureType, datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S"))
@@ -151,6 +166,7 @@ def initialize():
    parser = argparse.ArgumentParser(usage=usage())
    parser.add_argument('captureType')                    # positional, required.  photo or video
    parser.add_argument('emailTo')                        # positional, required
+   parser.add_argument('-l', '--light', action="store_true", dest="light", help='Turn on a light when taking the photo.')
    parser.add_argument('--debug', dest="debug", type=int, help='0=no debug, 1=STDERR, 2=log file')
 
    genutil.G_options = parser.parse_args()
