@@ -28,13 +28,14 @@ def usage():
  Function: Snap a photo or short video and email it.  Optionally turn on a
            light for the photo/video.
 
- Syntax  : $EXENAME {--debug #} {--light} captureType emailTo
+ Syntax  : $EXENAME {--debug #} {--light} {--pushoverTo user} captureType emailTo
 
  Note    : Parm         Description
            ----------   --------------------------------------------------------
            captureType  photo or video
            emailTo      email address to receive the photo/video
            --light      optionally turn light on during photo/video capture
+           --pushoverTo name of pushover user to notify of photos
            --debug      optionally specifies debug option
                         0=off 1=STDERR 2=FILE
 
@@ -43,6 +44,7 @@ def usage():
  Change History:
   em  12/12/2016  first written
   em  01/14/2017  add --light option
+  em  03/01/2018  add --pushoverTo option
 .
 """
    template = Template(usagetext)
@@ -112,6 +114,8 @@ def main():
       subject = 'Just Snapped a %s at %s!' % (genutil.G_options.captureType, datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S"))
       bodyText = 'Please see the attached file.'
       genutil.sendEmail(genutil.G_options.emailTo, subject, bodyText, binaryFilepath=binaryFilename)
+      if genutil.G_options.pushoverTo and genutil.G_options.captureType.lower() == 'photo':
+         genutil.sendPushoverMessage(genutil.G_options.pushoverTo, subject, binaryFilepath=binaryFilename)
 
       # cleanup and reset
       if genutil.G_options.captureType.lower() == 'video':
@@ -168,6 +172,7 @@ def initialize():
    parser.add_argument('emailTo')                        # positional, required
    parser.add_argument('-l', '--light', action="store_true", dest="light", help='Turn on a light when taking the photo.')
    parser.add_argument('--debug', dest="debug", type=int, help='0=no debug, 1=STDERR, 2=log file')
+   parser.add_argument('--pushoverTo', dest="pushoverTo", help='Pushover user name')
 
    genutil.G_options = parser.parse_args()
 
